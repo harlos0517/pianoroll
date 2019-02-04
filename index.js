@@ -33,13 +33,14 @@ var renderBuffer   = 400
 
 // MIDI
 var speed          = 0.4 // px:ms
-var midiOffset     = 1500 // ms
+var midiDelay      = 1500 // ms
 var defaultBpm     = 80
-var playBackFile   = 'deerstalker.mp3'
-var playbackOffset = 33 // ms
-var audioLagOffset = 0 // ms
+var audioFile      = 'deerstalker.mp3'
+var audioOffset    = 33 // ms
+var audioDelay     = 20 // ms
 var playbackListen = true
 var curEventListen = 0
+var accelRatio     = 1.0
 
 // app settings
 var app = new App({
@@ -53,10 +54,11 @@ var app = new App({
 
 // sound
 var sound = new Howl({
-	src: [playBackFile],
+	src: [audioFile],
 	autoplay: false,
   loop: false,
-  volume: 0.5,
+  volume: 0.8/accelRatio,
+  rate: accelRatio
 })
 
 /* PARAMETERS */
@@ -265,18 +267,18 @@ function renderNotes(x) {
 
 // playback
 function updateNoteArea() {
-	pianoNotes.y = noteAreaHeight + (ms - midiOffset) * speed
+	pianoNotes.y = noteAreaHeight + (ms * accelRatio - midiDelay) * speed
 }
 
 function audioPlaybackListener() {
-	if (playbackListen && ms>=midiOffset - playbackOffset - audioLagOffset) {
+	if (playbackListen && ms * accelRatio>=midiDelay - audioOffset + audioDelay) {
 		sound.play()
 		playbackListen = false
 	}
 }
 
 function updatePianoKeys() {
-	while (ms >= midifile.tracks[0][curEventListen].time + midiOffset && curEventListen<midifile.tracks[0].length){
+	while (curEventListen < midifile.tracks[0].length && ms * accelRatio >= midifile.tracks[0][curEventListen].time + midiDelay){
 		var e = midifile.tracks[0][curEventListen]
 		var obj = pianoKeys.children.find(x=>x.noteId==e.noteNumber)
 		if (obj) {
@@ -329,3 +331,5 @@ function log() {
 	console.log('FPS:'+app.ticker.FPS.toFixed(2))
 	console.log('rendered:'+renderNum)
 }
+
+function end() {}
