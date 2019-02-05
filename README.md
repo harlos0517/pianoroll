@@ -2,6 +2,8 @@
 
 An open-source MIDI note visualizing webpage.
 
+![Demo Image](https://DeemoHarlos.github.io/pianoroll/demo.png)
+
 ## ~~What it does~~ What it sould do
 
 Converts a midi file into piano roll presentation, with audio.
