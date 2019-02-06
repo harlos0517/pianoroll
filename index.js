@@ -29,7 +29,7 @@ var paddingTB      = appHeight * 0.1
 var noteAreaHeight = appHeight - pianoHeight - paddingTB * 2
 var noteName       = ['C','C#','D','Eb','E','F','F#','G','G#','A','Bb','B']
 var noteMarginLR   = 3
-var renderBuffer   = 400
+var renderBuffer   = 100
 
 // MIDI
 var speed          = 0.4 // px:ms
@@ -204,9 +204,7 @@ var renderNum = 0
 function noteAreaInit() {
 	// create mask
 	mask.beginFill(0xffffff)
-	mask.x = paddingLR
-	mask.y = paddingTB
-	mask.drawRect(0, 0, pianoWidth, noteAreaHeight)
+	mask.drawRect(paddingLR, paddingTB, pianoWidth, noteAreaHeight)
 	mask.endFill()
 
 	// render notearea
@@ -284,10 +282,10 @@ function updatePianoKeys() {
 		if (obj) {
 			var i = obj.noteId
 			if      (e.type === 'noteOn'){
-				obj.setTexture(TextureCache[isWhiteKey(i)?'whiteKeyActiveLeft.svg':'blackKeyActiveLeft.svg'])
+				obj.texture = TextureCache[isWhiteKey(i)?'whiteKeyActiveLeft.svg':'blackKeyActiveLeft.svg']
 			}
 			else if (e.type === 'noteOff'){
-				obj.setTexture(TextureCache[isWhiteKey(i)?'whiteKeyDefault.svg':'blackKeyDefault.svg'])
+				obj.texture = TextureCache[isWhiteKey(i)?'whiteKeyDefault.svg':'blackKeyDefault.svg']
 			}
 		}
 		curEventListen ++
