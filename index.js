@@ -33,10 +33,11 @@ var renderBuffer   = 100
 
 // MIDI
 var speed          = 0.4 // px:ms
+var midiFile       = 'demo.mid'
 var midiDelay      = 1500 // ms
 var defaultBpm     = 80
-var audioFile      = 'deerstalker.mp3'
-var audioOffset    = 33 // ms
+var audioFile      = 'demo.mp3'
+var audioOffset    = 0 // ms
 var audioDelay     = 20 // ms
 var playbackListen = true
 var curEventListen = 0
@@ -69,11 +70,12 @@ var frames = 0
 var ms = 0.0
 var secondTicker = 0
 
-// sprite and masks and sound
+// sprite and masks and sound and midi
 var pianoKeys = new Container()
 var pianoNotes = new Container()
 var pianoNotesArea = new Container()
 var mask = new Graphics()
+var midiJson = []
 
 /* SCALING */
 // scaling to window
@@ -83,7 +85,7 @@ $('body>.wrap').apnd(app.view)
 reScale()
 
 /* LOAD ASSETS */
-// load images and sounds
+// load images and sounds and midi
 loader.add([
 	'whiteKeyDefault.svg',
 	'whiteKeyPressed.svg',
@@ -94,7 +96,12 @@ loader.add([
 	'blackKeyActiveLeft.svg',
 	'blackKeyActiveRight.svg'
 ]).load(()=>{
-	sound.once('load',setup)
+	sound.once('load',()=>{
+		midi2json(midiFile,d=>{
+			midiJson = modifyJson(d)
+			setup()
+		})
+	})
 })
 
 /* FUNCTIONS */
@@ -148,15 +155,15 @@ function addAllKeys() {
 }
 
 // parse MIDI data
-function parseMidi(midi) {
+function modifyJson(json) {
 	// parse midi data
-	var notes = []
+	var newData = []
 	var inproc = []
 	var tick = 0
 	var time = 0 // ms
-	var ticksPerBeat = midi.header.ticksPerBeat
+	var ticksPerBeat = json.header.ticksPerBeat
 	var curMsPerTick = 60000 / ticksPerBeat / defaultBpm 
-	for(var e of midi.tracks[0]){
+	for(var e of json.tracks[0]){
 		// deltaTime is actually deltaTick
 		tick += e.deltaTime
 		time += e.deltaTime * curMsPerTick
@@ -167,8 +174,8 @@ function parseMidi(midi) {
 				var obj = inproc[index]
 				obj.endTime = time
 				obj.length = time - obj.startTime
-				obj.id = notes.length
-				notes.push(obj)
+				obj.id = newData.length
+				newData.push(obj)
 				inproc.splice(index,1)
 			}
 			var newObj = {}
@@ -183,8 +190,8 @@ function parseMidi(midi) {
 				var obj = inproc[index]
 				obj.endTime = time
 				obj.length = time - obj.startTime
-				obj.id = notes.length
-				notes.push(obj)
+				obj.id = newData.length
+				newData.push(obj)
 				inproc.splice(index,1)
 			}
 		}
@@ -193,8 +200,8 @@ function parseMidi(midi) {
 		}
 	}
 	// sort
-	notes.sort((a,b)=>a.startTime-b.startTime)
-	return notes
+	newData.sort((a,b)=>a.startTime-b.startTime)
+	return newData
 }
 
 // note rendering
@@ -208,7 +215,7 @@ function noteAreaInit() {
 	mask.endFill()
 
 	// render notearea
-	parseMidi(midifile).forEach((ne,ni,na)=>{
+	midiJson.forEach((ne,ni,na)=>{
 		var i = ne.noteNumber
 		var note = new Graphics()
 		note.x = getLeftPos(i) + noteMarginLR
@@ -276,8 +283,8 @@ function audioPlaybackListener() {
 }
 
 function updatePianoKeys() {
-	while (curEventListen < midifile.tracks[0].length && ms * accelRatio >= midifile.tracks[0][curEventListen].time + midiDelay){
-		var e = midifile.tracks[0][curEventListen]
+	while (curEventListen < midiJson.length && ms * accelRatio >= midiJson[curEventListen].startTime + midiDelay){
+		var e = midiJson[curEventListen]
 		var obj = pianoKeys.children.find(x=>x.noteId==e.noteNumber)
 		if (obj) {
 			var i = obj.noteId
