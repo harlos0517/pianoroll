@@ -77,7 +77,7 @@ function parseTrack(data) {
 
 	function readEvent() {
 		var event = {}
-		event.deltaTime = p.readVarInt()
+		event.deltaTick = p.readVarInt()
 
 		var eventTypeByte = p.readUInt8()
 

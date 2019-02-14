@@ -34,11 +34,12 @@ var renderBuffer   = 100
 // MIDI
 var speed          = 0.4 // px:ms
 var midiFile       = 'demo.mid'
+var midiTrackNum   = 0
 var midiDelay      = 1500 // ms
 var defaultBpm     = 80
 var audioFile      = 'demo.mp3'
 var audioOffset    = 0 // ms
-var audioDelay     = 20 // ms
+var audioDelay     = -70 // ms
 var playbackListen = true
 var curEventListen = 0
 var accelRatio     = 1.0
@@ -67,15 +68,17 @@ var sound = new Howl({
 var frameUpdate
 var secondUpdate
 var frames = 0
-var ms = 0.0
+var ms = 0
 var secondTicker = 0
+var skip = 2 // skip frames
 
 // sprite and masks and sound and midi
 var pianoKeys = new Container()
 var pianoNotes = new Container()
 var pianoNotesArea = new Container()
 var mask = new Graphics()
-var midiJson = []
+var midiData = {}
+var midiJson = {}
 
 /* SCALING */
 // scaling to window
@@ -98,6 +101,7 @@ loader.add([
 ]).load(()=>{
 	sound.once('load',()=>{
 		midi2json(midiFile,d=>{
+			midiData = d
 			midiJson = modifyJson(d)
 			setup()
 		})
@@ -155,59 +159,141 @@ function addAllKeys() {
 }
 
 // parse MIDI data
-function modifyJson(json) {
-	// parse midi data
-	var newData = []
-	var inproc = []
-	var tick = 0
+function modifyJson(data) {
+	var events = []
+	var ticksPerBeat = data.header.ticksPerBeat
+
+	// Add header first
+	events.push(data.header)
+	events[0].type = 'header'
+	events[0].deltaTick = 0
+	events[0].deltaTime = 0
+	events[0].tick = 0
+	events[0].time = 0
+
+	// Merge all tracks into one array, calculate ticks
+	data.tracks.forEach((track,ti,tracks)=>{
+		if (!Array.isArray(track)) return
+		var tick = 0
+		track.forEach((event,ei,track)=>{
+			var newEvent = Object.assign({},event)
+			tick += event.deltaTick
+			newEvent.tick = tick
+			newEvent.track = ti
+			var typeAllowed = (
+				newEvent.type === 'noteOn'     ||
+				newEvent.type === 'noteOff'    ||
+				newEvent.type === 'controller' ||
+				newEvent.type === 'setTempo'
+			)
+			if (typeAllowed) events.push(newEvent)
+		})
+	})
+
+	// Sort in ticks
+	events.sort((a,b)=>a.tick-b.tick)
+
+	// calculate time
+	inProc = []
 	var time = 0 // ms
-	var ticksPerBeat = json.header.ticksPerBeat
 	var curMsPerTick = 60000 / ticksPerBeat / defaultBpm 
-	for(var e of json.tracks[0]){
-		// deltaTime is actually deltaTick
-		tick += e.deltaTime
-		time += e.deltaTime * curMsPerTick
-		e.time = time
-		var index = inproc.findIndex(note=>note.noteNumber==e.noteNumber)
-		if (e.type === 'noteOn'){
-			if(index>=0){
-				var obj = inproc[index]
-				obj.endTime = time
-				obj.length = time - obj.startTime
-				obj.id = newData.length
-				newData.push(obj)
-				inproc.splice(index,1)
+	events.forEach((event,ei,events)=>{
+		if(!ei) return
+		time += (event.tick - events[ei-1].tick) * curMsPerTick
+		event.time = time
+		if (event.type === 'setTempo') {
+			curMsPerTick = event.microsecondsPerBeat / ticksPerBeat / 1000
+		}
+	})
+
+	// Link noteOns and noteOffs, check for missing or unnecessary noteOffs
+	var inProc = []
+	events.forEach((event,ei,events)=>{
+		if(!event.added){
+
+			var index = inProc.findIndex(proc=>(
+				proc.noteNumber === event.noteNumber && 
+				proc.channel    === event.channel    &&
+				proc.track      === event.track
+			))
+
+			function noteOn() {
+				var newObj = {}
+				newObj.noteNumber = event.noteNumber
+				newObj.channel    = event.channel
+				newObj.track      = event.track
+				newObj.tick       = event.tick
+				inProc.push(newObj)
 			}
-			var newObj = {}
-			newObj.startTime = time
-			newObj.channel = 0
-			newObj.noteNumber = e.noteNumber
-			newObj.velocity = e.velocity
-			inproc.push(newObj)
-		}
-		else if (e.type === 'noteOff') {
-			if(index>=0){
-				var obj = inproc[index]
-				obj.endTime = time
-				obj.length = time - obj.startTime
-				obj.id = newData.length
-				newData.push(obj)
-				inproc.splice(index,1)
+
+			function noteOff(procIndex) {
+				var proc = inProc[procIndex]
+				var startNote = events.find(note=>(
+					note.noteNumber === proc.noteNumber && 
+					note.channel    === proc.channel    &&
+					note.track      === proc.track      &&
+					note.tick       === proc.tick
+				))
+				if (startNote) {
+					startNote.endTick = event.tick
+					startNote.endTime = event.time
+					event.tickLength = startNote.tickLength = event.tick - startNote.tick
+					event.timeLength = startNote.timeLength = event.time - startNote.time
+					event.startTick = startNote.tick
+					event.startTime = startNote.time
+					inProc.splice(procIndex,1)
+					return startNote
+				}
+				else throw "Cannot find startNote!!" // Not supposed to happen
+			}
+
+			function addNoteOff(procIndex,fl) {
+				var newObj = Object.assign({},noteOff(procIndex))
+				newObj.type = 'noteOff'
+				newObj.velocity = 0
+				newObj.tick = event.tick
+				newObj.time = event.time
+				newObj.added = true
+				events.push(newObj)
+			}
+
+			if (event.type === 'noteOn'){
+				if(index>=0) addNoteOff(index,true)
+				noteOn()
+			}
+			else if (event.type === 'noteOff') {
+				if(index>=0) noteOff(index)
+				else event.ignore == true
+			}
+			else if (event.type === 'setTempo') {
+				curMsPerTick = event.microsecondsPerBeat / ticksPerBeat / 1000
 			}
 		}
-		else if (e.type === 'setTempo') {
-			var curMsPerTick = e.microsecondsPerBeat / ticksPerBeat / 1000
+		// add missing noteOffs
+		if (ei >= events.length-1) {
+			while (inProc.length>0) addNoteOff(0,false)
+			return
 		}
-	}
-	// sort
-	newData.sort((a,b)=>a.startTime-b.startTime)
-	return newData
+	})
+
+	// remove unnecessary noteOffs
+	events = events.filter(e=>!e.ignore)
+
+	// Sort in ticks
+	events.sort((a,b)=>a.tick-b.tick)
+
+	// Calculate delta
+	events.forEach((event,ei,events)=>{
+		if (ei>0) {
+			event.deltaTick = event.tick - events[ei-1].tick
+			event.deltaTime = event.time - events[ei-1].time
+		}
+	})
+
+	return events
 }
 
 // note rendering
-var renderStart = 0
-var renderNum = 0
-
 function noteAreaInit() {
 	// create mask
 	mask.beginFill(0xffffff)
@@ -216,18 +302,20 @@ function noteAreaInit() {
 
 	// render notearea
 	midiJson.forEach((ne,ni,na)=>{
-		var i = ne.noteNumber
-		var note = new Graphics()
-		note.x = getLeftPos(i) + noteMarginLR
-		note.y = 0 - ne.endTime * speed
-		var width = (isWhiteKey(i)?whiteKeyWidth:blackKeyWidth) - noteMarginLR * 2
-		var height = ne.length * speed
-		var r = keyRadius
-		note.beginFill(isWhiteKey(i)?0xFFFFAA:0x666644)
-		note.drawRoundedRect(0,0,width,height,r)
-		note.endFill()
-		note.visible = false
-		pianoNotes.addChild(note)
+		if (ne.type==='noteOn') {
+			var i = ne.noteNumber
+			var note = new Graphics()
+			note.x = getLeftPos(i) + noteMarginLR
+			note.y = 0 - ne.endTime * speed
+			var width = (isWhiteKey(i)?whiteKeyWidth:blackKeyWidth) - noteMarginLR * 2
+			var height = ne.timeLength * speed
+			var r = keyRadius
+			note.beginFill(isWhiteKey(i)?0xFFFFAA:0x666644)
+			note.drawRoundedRect(0,0,width,height,r)
+			note.endFill(1)
+			note.visible = false
+			pianoNotes.addChild(note)
+		}
 	})
 	pianoNotes.x = 0
 	pianoNotes.y = noteAreaHeight
@@ -239,6 +327,9 @@ function noteAreaInit() {
 	renderNotes(0)
 }
 
+// optimization (do not render things outside the area)
+var renderStart = 0
+var renderNum = 0
 function toggleRender(obj) {
 	// var yDiff = mask.toLocal(obj,mask).y
 	// TODO: unknown usage toLocal
@@ -253,7 +344,6 @@ function toggleRender(obj) {
 	return after?'after':(before?'before':'inside')
 }
 
-// optimization (do not render things outside the area)
 function renderNotes(x) {
 	var listen = true
 	for (var i=(x!==undefined)?x:renderStart;i<pianoNotes.children.length;i++) {
@@ -303,7 +393,13 @@ function updatePianoKeys() {
 // timer event triggering
 function gameLoop(delta) {
 	frames += 1
-	ms += app.ticker.elapsedMS
+	if(skip) {
+		skip --
+		ms = 0
+	}
+	else ms += app.ticker.elapsedMS
+
+	console.log(ms+' ms')
 
 	secondTicker += app.ticker.elapsedMS
 	if(secondTicker >= 1000.0) {
@@ -319,9 +415,11 @@ function setup() {
 	addAllKeys()
 	noteAreaInit()
 	// start loop, trigger events
+	
+	app.ticker.add(gameLoop)
 	frameUpdate = play
 	secondUpdate = log
-	app.ticker.add(gameLoop)
+	ms = 0 // Reset
 }
 
 // playback
