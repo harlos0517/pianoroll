@@ -26,8 +26,9 @@ var blackKeyHeight = whiteKeyWidth * 3.5
 var keyRadius      = whiteKeyWidth / 5
 var pianoHeight    = whiteKeyHeight
 var paddingLR      = (appWidth - pianoWidth) / 2
-var paddingTB      = appHeight * 0.1
-var noteAreaHeight = appHeight - pianoHeight - paddingTB * 2
+var paddingTop     = 0
+var paddingBottom  = appHeight * 0.1
+var noteAreaHeight = appHeight - pianoHeight - paddingTop - paddingBottom
 var noteName       = ['C','C#','D','Eb','E','F','F#','G','G#','A','Bb','B']
 var noteMarginLR   = 3
 var renderBuffer   = 100
@@ -182,7 +183,7 @@ function addAllKeys() {
 	for(var i=startKey; i<=endKey; i++) if(isWhiteKey(i)) addKey(i)
 	for(var i=startKey; i<=endKey; i++) if(isBlackKey(i)) addKey(i)
 	pianoKeys.x = paddingLR
-	pianoKeys.y = paddingTB+noteAreaHeight
+	pianoKeys.y = appHeight - paddingBottom - pianoHeight
 	app.stage.addChild(pianoKeys)
 }
 
@@ -325,7 +326,7 @@ function modifyJson(data) {
 function noteAreaInit() {
 	// create mask
 	mask.beginFill(0xffffff)
-	mask.drawRect(paddingLR, paddingTB, pianoWidth, noteAreaHeight)
+	mask.drawRect(paddingLR, paddingTop, pianoWidth, noteAreaHeight)
 	mask.endFill()
 
 	// render notearea
@@ -351,7 +352,7 @@ function noteAreaInit() {
 	pianoNotesArea.addChild(pianoNotes)
 	pianoNotesArea.mask = mask
 	pianoNotesArea.x = paddingLR
-	pianoNotesArea.y = paddingTB
+	pianoNotesArea.y = 0
 	app.stage.addChild(pianoNotesArea)
 	renderNotes(0)
 }
