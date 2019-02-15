@@ -7,6 +7,7 @@ const Container    = PIXI.Container
 const TextureCache = PIXI.utils.TextureCache
 const Graphics     = PIXI.Graphics
 const Ticker       = PIXI.Ticker
+const filters      = PIXI.filters
 
 /* CONFIGURATION */
 // pianoroll layout
@@ -33,16 +34,47 @@ var renderBuffer   = 100
 
 // MIDI
 var speed          = 0.4 // px:ms
-var midiFile       = 'demo.mid'
+var midiFile       = 'demo2.mid'
 var midiTrackNum   = 0
-var midiDelay      = 1500 // ms
+var midiDelay      = noteAreaHeight * 1.25 / speed // ms
 var defaultBpm     = 80
-var audioFile      = 'demo.mp3'
+var audioFile      = 'demo2.mp3'
 var audioOffset    = 0 // ms
 var audioDelay     = -70 // ms
 var playbackListen = true
 var curEventListen = 0
 var accelRatio     = 1.0
+
+// colors
+var keyDim         = .8
+var blackNoteDim   = .5
+var noteColor = [ // [track]
+	0xFFAA00,
+	0xFFFF88,
+	0x55AAFF,
+	0x66FFFF
+]
+function colorFilter(hex,dim) {
+	let filter = new filters.ColorMatrixFilter()
+	var R = (hex/65536  ) / 255 * dim
+	var G = (hex/256%256) / 255 * dim
+	var B = (hex    %256) / 255 * dim
+	filter.matrix = 
+		[R, 0, 0, 0, 0,
+		 0, G, 0, 0, 0,
+		 0, 0, B, 0, 0,
+		 0, 0, 0, 1, 0]
+	return filter
+}
+function dimFilter(v) {
+	let filter = new filters.ColorMatrixFilter()
+	filter.matrix = 
+		[v, 0, 0, 0, 0,
+		 0, v, 0, 0, 0,
+		 0, 0, v, 0, 0,
+		 0, 0, 0, 1, 0]
+	return filter
+}
 
 // app settings
 var app = new App({
@@ -90,14 +122,10 @@ reScale()
 /* LOAD ASSETS */
 // load images and sounds and midi
 loader.add([
-	'whiteKeyDefault.svg',
-	'whiteKeyPressed.svg',
-	'whiteKeyActiveLeft.svg',
-	'whiteKeyActiveRight.svg',
-	'blackKeyDefault.svg',
-	'blackKeyPressed.svg',
-	'blackKeyActiveLeft.svg',
-	'blackKeyActiveRight.svg'
+	'whiteOn.svg',
+	'whiteOff.svg',
+	'blackOn.svg',
+	'blackOff.svg'
 ]).load(()=>{
 	sound.once('load',()=>{
 		midi2json(midiFile,d=>{
@@ -140,7 +168,7 @@ function getLeftPos(i) {
 }
 
 function addKey(i) {
-	var key = new Sprite(resource[isWhiteKey(i)?'whiteKeyDefault.svg':'blackKeyDefault.svg'].texture)
+	var key = new Sprite(resource[isWhiteKey(i)?'whiteOff.svg':'blackOff.svg'].texture)
 	key.noteId = i
 	pianoKeys.addChild(key)
 	key.x = getLeftPos(i)
@@ -310,9 +338,10 @@ function noteAreaInit() {
 			var width = (isWhiteKey(i)?whiteKeyWidth:blackKeyWidth) - noteMarginLR * 2
 			var height = ne.timeLength * speed
 			var r = keyRadius
-			note.beginFill(isWhiteKey(i)?0xFFFFAA:0x666644)
+			note.beginFill(noteColor[ne.track])
 			note.drawRoundedRect(0,0,width,height,r)
 			note.endFill(1)
+			note.filters = isWhiteKey(i)?null:[dimFilter(blackNoteDim)]
 			note.visible = false
 			pianoNotes.addChild(note)
 		}
@@ -373,16 +402,18 @@ function audioPlaybackListener() {
 }
 
 function updatePianoKeys() {
-	while (curEventListen < midiJson.length && ms * accelRatio >= midiJson[curEventListen].startTime + midiDelay){
+	while (curEventListen < midiJson.length && ms * accelRatio >= midiJson[curEventListen].time + midiDelay){
 		var e = midiJson[curEventListen]
 		var obj = pianoKeys.children.find(x=>x.noteId==e.noteNumber)
 		if (obj) {
 			var i = obj.noteId
-			if      (e.type === 'noteOn'){
-				obj.texture = TextureCache[isWhiteKey(i)?'whiteKeyActiveLeft.svg':'blackKeyActiveLeft.svg']
+			if (e.type === 'noteOn') {
+				obj.texture = TextureCache[isWhiteKey(i)?'whiteOn.svg' :'blackOn.svg' ]
+				obj.filters = [colorFilter(noteColor[e.track],keyDim)]
 			}
-			else if (e.type === 'noteOff'){
-				obj.texture = TextureCache[isWhiteKey(i)?'whiteKeyDefault.svg':'blackKeyDefault.svg']
+			else if (e.type === 'noteOff') {
+				obj.texture = TextureCache[isWhiteKey(i)?'whiteOff.svg':'blackOff.svg']
+				obj.filters = null
 			}
 		}
 		curEventListen ++
@@ -398,8 +429,6 @@ function gameLoop(delta) {
 		ms = 0
 	}
 	else ms += app.ticker.elapsedMS
-
-	console.log(ms+' ms')
 
 	secondTicker += app.ticker.elapsedMS
 	if(secondTicker >= 1000.0) {
