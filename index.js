@@ -145,6 +145,7 @@ function setup() {
 
 	/* CONFIG EVENTS */
 	$('#load').$e('click',e=>{
+		if(sound) sound.stop()
 		if (!$('#midfile'  ).files[0]) midiFile  = null
 		else  midiFile = window.URL.createObjectURL($('#midfile').files[0])
 		if (!$('#audiofile').files[0]) audioFile = null
@@ -244,6 +245,12 @@ function loadAudio() {
 }
 
 // color filter function
+function getColor(track, channel) {
+	var trNum = noteColor.length
+	var chNum = noteColor[track%trNum].length
+	return noteColor[track%trNum][channel%chNum]
+}
+
 function colorFilter(hex,dim) {
 	let filter = new filters.ColorMatrixFilter()
 	var R = Math.floor(hex/256 /256)/ 255 * dim
@@ -470,7 +477,7 @@ function noteAreaInit() {
 			note.y = 0 - ne.endTime * speed
 			var width = (isWhiteKey(i)?whiteKeyWidth:blackKeyWidth) - noteMarginLR * 2
 			var height = ne.timeLength * speed
-			note.beginFill(noteColor[ne.track][ne.channel])
+			note.beginFill(getColor(ne.track,ne.channel))
 			note.drawRoundedRect(0,0,width,height,noteRadius)
 			note.endFill(1)
 			note.filters = isWhiteKey(i)?null:[dimFilter(blackNoteDim)]
@@ -541,7 +548,7 @@ function updatePianoKeys() {
 			var i = obj.noteId
 			if (e.type === 'noteOn') {
 				obj.texture = TextureCache[isWhiteKey(i)?'whiteOn.svg' :'blackOn.svg' ]
-				obj.filters = [colorFilter(noteColor[e.track][e.channel],keyDim)]
+				obj.filters = [colorFilter(getColor(e.track,e.channel),keyDim)]
 			}
 			else if (e.type === 'noteOff') {
 				obj.texture = TextureCache[isWhiteKey(i)?'whiteOff.svg':'blackOff.svg']
