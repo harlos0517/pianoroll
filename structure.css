@@ -20,6 +20,14 @@ body {
 /*	user-select: none;*/
 }
 
+*::-webkit-scrollbar {
+	opacity: 0;
+	display:none;
+}
+
+*::-webkit-scrollbar-thumb {
+}
+
 .expand {
 	flex: 1 0 0;
 }

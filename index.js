@@ -1,143 +1,272 @@
 /* PIXI ALIAS */
-const App          = PIXI.Application
-const loader       = PIXI.loader
-const resource     = PIXI.loader.resources
-const Sprite       = PIXI.Sprite
-const Container    = PIXI.Container
-const TextureCache = PIXI.utils.TextureCache
-const Graphics     = PIXI.Graphics
-const Ticker       = PIXI.Ticker
-const filters      = PIXI.filters
-
-/* CONFIGURATION */
-// pianoroll layout
-var startKey       =   21 // Must be on white-key
-var endKey         =  108 // Must be on white-key
-var whiteKeyNum    =   52
-var blackKeyNum    =   36
-var keyNum         = endKey - startKey + 1
-var appWidth       = 1920
-var appHeight      = 1080
-var pianoWidth     = appWidth * .8
-var whiteKeyWidth  = pianoWidth / whiteKeyNum
-var whiteKeyHeight = whiteKeyWidth * 5.5
-var blackKeyWidth  = whiteKeyWidth * .6
-var blackKeyHeight = whiteKeyWidth * 3.5
-var keyRadius      = whiteKeyWidth / 5
-var pianoHeight    = whiteKeyHeight
-var paddingLR      = (appWidth - pianoWidth) / 2
-var paddingTop     = 0
-var paddingBottom  = appHeight * 0.1
-var noteAreaHeight = appHeight - pianoHeight - paddingTop - paddingBottom
-var noteName       = ['C','C#','D','Eb','E','F','F#','G','G#','A','Bb','B']
-var noteMarginLR   = 3
-var renderBuffer   = 100
-
-// MIDI
-var speed          = 0.4 // px:ms
-var midiFile       = 'demo2.mid'
-var midiTrackNum   = 0
-var midiDelay      = noteAreaHeight * 1.25 / speed // ms
-var defaultBpm     = 80
-var audioFile      = 'demo2.mp3'
-var audioOffset    = 0 // ms
-var audioDelay     = -70 // ms
-var playbackListen = true
-var curEventListen = 0
-var accelRatio     = 1.0
-
-// colors
-var keyDim         = .8
-var blackNoteDim   = .5
-var noteColor = [ // [track]
-	0xFFAA00,
-	0xFFFF88,
-	0x55AAFF,
-	0x66FFFF
-]
-function colorFilter(hex,dim) {
-	let filter = new filters.ColorMatrixFilter()
-	var R = (hex/65536  ) / 255 * dim
-	var G = (hex/256%256) / 255 * dim
-	var B = (hex    %256) / 255 * dim
-	filter.matrix = 
-		[R, 0, 0, 0, 0,
-		 0, G, 0, 0, 0,
-		 0, 0, B, 0, 0,
-		 0, 0, 0, 1, 0]
-	return filter
-}
-function dimFilter(v) {
-	let filter = new filters.ColorMatrixFilter()
-	filter.matrix = 
-		[v, 0, 0, 0, 0,
-		 0, v, 0, 0, 0,
-		 0, 0, v, 0, 0,
-		 0, 0, 0, 1, 0]
-	return filter
-}
-
-// app settings
-var app = new App({
-	width: appWidth,
-	height: appHeight,
-	antialias:   true,
-	transparent: false,
-	autoResize:  true,
-	resolution:  1,
-})
-
-// sound
-var sound = new Howl({
-	src: [audioFile],
-	autoplay: false,
-  loop: false,
-  volume: 0.8/accelRatio,
-  rate: accelRatio
-})
+const App            = PIXI.Application
+const loader         = PIXI.loader
+const resource       = PIXI.loader.resources
+const Sprite         = PIXI.Sprite
+const Container      = PIXI.Container
+const TextureCache   = PIXI.utils.TextureCache
+const Graphics       = PIXI.Graphics
+const Ticker         = PIXI.Ticker
+const filters        = PIXI.filters
 
 /* PARAMETERS */
-// timer
-var frameUpdate
-var secondUpdate
-var frames = 0
-var ms = 0
-var secondTicker = 0
-var skip = 2 // skip frames
+// layout
+var pianoKeys        = new Container()
+var pianoNotes       = new Container()
+var pianoNotesArea   = new Container()
+var mask             = new Graphics()
 
-// sprite and masks and sound and midi
-var pianoKeys = new Container()
-var pianoNotes = new Container()
-var pianoNotesArea = new Container()
-var mask = new Graphics()
-var midiData = {}
-var midiJson = {}
+var keyNum           = endKey - startKey +1
+var whiteKeyNum      = getWhiteKeyIndex(endKey) - getWhiteKeyIndex(startKey) + 1
+var blackKeyNum      = keyNum - whiteKeyNum
 
-/* SCALING */
-// scaling to window
-function reScale() { scaleToWindow(app.view, '#333333') }
-window.addEventListener('resize',reScale)
-$('body>.wrap').apnd(app.view)
-reScale()
+var paddingTop       = resolutionHeight * paddingTratio
+var paddingBottom    = resolutionHeight * paddingBratio
+var paddingLR        = resolutionHeight * paddingLRratio
 
-/* LOAD ASSETS */
-// load images and sounds and midi
-loader.add([
-	'whiteOn.svg',
-	'whiteOff.svg',
-	'blackOn.svg',
-	'blackOff.svg'
-]).load(()=>{
-	sound.once('load',()=>{
+var pianoWidth       = resolutionWidth - paddingLR * 2
+var whiteKeyWidth    = pianoWidth / whiteKeyNum
+var whiteKeyHeight   = whiteKeyWidth * whiteKeyHratio
+var blackKeyWidth    = whiteKeyWidth * blackKeyWratio
+var blackKeyHeight   = whiteKeyWidth * blackKeyHratio
+var pianoHeight      = whiteKeyHeight
+
+var noteAreaHeight   = resolutionHeight - pianoHeight - paddingTop - paddingBottom
+var noteMarginLR     = whiteKeyWidth * noteLRratio
+var noteRadius       = whiteKeyWidth * noteRadiusRatio
+var noteAreaInitY    = noteAreaHeight * (1 - playDelayRatio)
+var noteName         = ['C','C#','D','Eb','E','F','F#','G','G#','A','Bb','B']
+
+// app
+var app
+
+// audio
+var playbackDelay    = noteAreaHeight * playDelayRatio / speed // ms
+var sound
+
+// timer and state params
+var state            = 'loading'
+var stateFunction    = idle
+var secondUpdate     = idle
+var frames           = 0
+var cursor           // ms
+var secondTicker     // ms
+var skip             // skip frames
+
+var midiData
+var midiJson
+var curEventListen
+var playbackListen
+var renderStart
+var renderNum
+
+/* STATES */
+// playback
+var states = {
+	'loading': function () {
+		idle()
+	},
+	'ready': function () {
+		idle()
+	},
+	'play': function () {
+		if(skip) skip--
+		else {
+			cursor += app.ticker.elapsedMS * accelRatio
+
+			audioPlaybackListener()
+			updatePianoKeys()
+			updateNoteArea()
+			renderNotes(0)
+		}
+	},
+	'pause': function () {
+		sound.pause()
+		if (animationOnPause) {
+			updatePianoKeys()
+			updateNoteArea()
+			renderNotes(0)
+		}
+	}
+}
+
+/* FUNCTIONS */
+// state functions
+function gameLoop(delta) {
+	frames ++
+	secondTicker += app.ticker.elapsedMS
+	if(secondTicker >= 1000) {
+		secondUpdate()
+		secondTicker %= 1000
+	}
+	stateFunction()
+}
+
+function switchState(st) {
+	var newState = states[st]
+	if(!newState) throw `State '${st}' not found.`
+	console.log(st)
+	state = st
+	stateFunction = newState	
+}
+
+function idle() {}
+
+function log() {
+	console.log('FPS:'+app.ticker.FPS.toFixed(2)+' / rendered notes:'+renderNum)
+}
+
+// setup
+function setup() {
+	app = new App({
+		width            : resolutionWidth,
+		height           : resolutionHeight,
+		antialias        : antialias,
+		transparent      : transparent,
+		autoResize       : true,
+		resolution       : 1,
+		backgroundColor  : backgroundColor
+	})
+
+	/* SCALING */
+	function reScale() { scaleToWindow(app.view, bodyBgColor) }
+	window.addEventListener('resize',reScale)
+	$('body>.wrap>#main').apnd(app.view)
+	reScale()
+
+	/* PLAYBACK CONTROL */
+	$('#main').$e('click',()=>{
+		if(state === 'ready' || state === 'pause') {
+			playbackListen = true
+			switchState('play')
+		}
+		else if(state === 'play') switchState('pause')
+	})
+
+	/* CONFIG EVENTS */
+	$('#load').$e('click',e=>{
+		if (!$('#midfile'  ).files[0]) midiFile  = null
+		else  midiFile = window.URL.createObjectURL($('#midfile').files[0])
+		if (!$('#audiofile').files[0]) audioFile = null
+		else {
+			audioFile = window.URL.createObjectURL($('#audiofile').files[0])
+			var parts = $('#audiofile').files[0].name.split('.')
+			audioFormat = parts[parts.length-1]
+		}
+
+		if(!midiFile) throw 'You must upload a file!'
+		loadData()
+	})
+
+	/* LOAD ASSETS */
+	loader.add([
+		'whiteOn.svg',
+		'whiteOff.svg',
+		'blackOn.svg',
+		'blackOff.svg'
+	]).load(()=>{
+		addAllKeys()
+
+		// start loop and log render info
+		secondUpdate = log	
+		app.ticker.add(gameLoop)
+
+		loadData()
+	})
+
+}
+
+function initParams() {
+	pianoNotes.y     = noteAreaHeight - playbackDelay * speed
+	cursor           = -playbackDelay // ms
+	secondTicker     = 0 // ms
+	skip             = skipFrameNum // skip frames
+	curEventListen   = 0
+	playbackListen   = false
+	renderStart      = 0
+	renderNum        = 0
+}
+
+function initPianoKeys() {
+	pianoKeys.children.forEach((obj,ki,a)=>{
+		i = obj.noteId
+		obj.texture = TextureCache[isWhiteKey(i)?'whiteOff.svg':'blackOff.svg']
+		obj.filters = null
+	})
+}
+
+function loadData() {
+	switchState('loading')
+
+	initPianoKeys()
+	initParams()
+
+	midiData = {}
+	midiJson = []
+
+	if (midiFile){
 		midi2json(midiFile,d=>{
 			midiData = d
 			midiJson = modifyJson(d)
-			setup()
+			noteAreaInit()
+			if(audioFile) loadAudio()
+			else switchState('ready')
 		})
-	})
-})
+	}
+}
 
-/* FUNCTIONS */
+function loadAudio() {
+	if(sound) sound.stop()
+	sound = new Howl({
+		src              : [audioFile],
+		format           : [audioFormat],
+		autoplay         : false,
+		loop             : false,
+		volume           : volume/Math.max(accelRatio,1),
+		rate             : accelRatio,
+	})
+
+	sound.once('load',()=>{
+		switchState('ready')
+	})
+
+	sound.once('loaderror',(e,msg)=>{
+		console.log('Unable to load file: ' + name + ' | error message : ' + msg);
+		console.log('First argument error ' + e);
+	})
+
+	sound.once('end',()=>{
+		initParams()
+		switchState('ready')
+	})
+
+	sound.load()
+}
+
+// color filter function
+function colorFilter(hex,dim) {
+	let filter = new filters.ColorMatrixFilter()
+	var R = Math.floor(hex/256 /256)/ 255 * dim
+	var G = Math.floor(hex/256)%256 / 255 * dim
+	var B =            hex     %256 / 255 * dim
+	filter.matrix = [
+		R, 0, 0, 0, 0,
+		0, G, 0, 0, 0,
+		0, 0, B, 0, 0,
+		0, 0, 0, 1, 0]
+	return filter
+}
+
+function dimFilter(v) {
+	let filter = new filters.ColorMatrixFilter()
+	filter.matrix = [
+		v, 0, 0, 0, 0,
+		0, v, 0, 0, 0,
+		0, 0, v, 0, 0,
+		0, 0, 0, 1, 0]
+	return filter
+}
+
 // note function
 function isWhiteKey(i) {
 	var mod = i % 12
@@ -183,7 +312,7 @@ function addAllKeys() {
 	for(var i=startKey; i<=endKey; i++) if(isWhiteKey(i)) addKey(i)
 	for(var i=startKey; i<=endKey; i++) if(isBlackKey(i)) addKey(i)
 	pianoKeys.x = paddingLR
-	pianoKeys.y = appHeight - paddingBottom - pianoHeight
+	pianoKeys.y = resolutionHeight - paddingBottom - pianoHeight
 	app.stage.addChild(pianoKeys)
 }
 
@@ -324,6 +453,9 @@ function modifyJson(data) {
 
 // note rendering
 function noteAreaInit() {
+	pianoNotes.destroy({children:true, texture:true, baseTexture:true})
+	pianoNotes = new Container()
+
 	// create mask
 	mask.beginFill(0xffffff)
 	mask.drawRect(paddingLR, paddingTop, pianoWidth, noteAreaHeight)
@@ -338,9 +470,8 @@ function noteAreaInit() {
 			note.y = 0 - ne.endTime * speed
 			var width = (isWhiteKey(i)?whiteKeyWidth:blackKeyWidth) - noteMarginLR * 2
 			var height = ne.timeLength * speed
-			var r = keyRadius
-			note.beginFill(noteColor[ne.track])
-			note.drawRoundedRect(0,0,width,height,r)
+			note.beginFill(noteColor[ne.track][ne.channel])
+			note.drawRoundedRect(0,0,width,height,noteRadius)
 			note.endFill(1)
 			note.filters = isWhiteKey(i)?null:[dimFilter(blackNoteDim)]
 			note.visible = false
@@ -348,7 +479,7 @@ function noteAreaInit() {
 		}
 	})
 	pianoNotes.x = 0
-	pianoNotes.y = noteAreaHeight
+	pianoNotes.y = noteAreaHeight - playbackDelay * speed
 	pianoNotesArea.addChild(pianoNotes)
 	pianoNotesArea.mask = mask
 	pianoNotesArea.x = paddingLR
@@ -358,8 +489,7 @@ function noteAreaInit() {
 }
 
 // optimization (do not render things outside the area)
-var renderStart = 0
-var renderNum = 0
+
 function toggleRender(obj) {
 	// var yDiff = mask.toLocal(obj,mask).y
 	// TODO: unknown usage toLocal
@@ -392,25 +522,26 @@ function renderNotes(x) {
 
 // playback
 function updateNoteArea() {
-	pianoNotes.y = noteAreaHeight + (ms * accelRatio - midiDelay) * speed
+	pianoNotes.y = noteAreaHeight + cursor * speed
 }
 
 function audioPlaybackListener() {
-	if (playbackListen && ms * accelRatio>=midiDelay - audioOffset + audioDelay) {
+	if (playbackListen && cursor >= audioDelay/accelRatio - audioOffset) {
+		sound.seek((cursor + audioOffset - audioDelay/accelRatio)/1000)
 		sound.play()
 		playbackListen = false
 	}
 }
 
 function updatePianoKeys() {
-	while (curEventListen < midiJson.length && ms * accelRatio >= midiJson[curEventListen].time + midiDelay){
+	while (curEventListen < midiJson.length && cursor >= midiJson[curEventListen].time){
 		var e = midiJson[curEventListen]
 		var obj = pianoKeys.children.find(x=>x.noteId==e.noteNumber)
 		if (obj) {
 			var i = obj.noteId
 			if (e.type === 'noteOn') {
 				obj.texture = TextureCache[isWhiteKey(i)?'whiteOn.svg' :'blackOn.svg' ]
-				obj.filters = [colorFilter(noteColor[e.track],keyDim)]
+				obj.filters = [colorFilter(noteColor[e.track][e.channel],keyDim)]
 			}
 			else if (e.type === 'noteOff') {
 				obj.texture = TextureCache[isWhiteKey(i)?'whiteOff.svg':'blackOff.svg']
@@ -421,48 +552,5 @@ function updatePianoKeys() {
 	}
 }
 
-/* STATES */
-// timer event triggering
-function gameLoop(delta) {
-	frames += 1
-	if(skip) {
-		skip --
-		ms = 0
-	}
-	else ms += app.ticker.elapsedMS
-
-	secondTicker += app.ticker.elapsedMS
-	if(secondTicker >= 1000.0) {
-		secondUpdate()
-		secondTicker %= 1000.0
-	}
-
-	frameUpdate()
-}
-
-// setup
-function setup() {
-	addAllKeys()
-	noteAreaInit()
-	// start loop, trigger events
-	
-	app.ticker.add(gameLoop)
-	frameUpdate = play
-	secondUpdate = log
-	ms = 0 // Reset
-}
-
-// playback
-function play() {
-	audioPlaybackListener()
-	updatePianoKeys()
-	updateNoteArea()
-	renderNotes(0)
-}
-
-function log() {
-	console.log('FPS:'+app.ticker.FPS.toFixed(2))
-	console.log('rendered:'+renderNum)
-}
-
-function end() {}
+//run.
+setup()
