@@ -2,7 +2,7 @@
 
 An open-source MIDI note visualizing webpage.
 
-![Demo Image](https://DeemoHarlos.github.io/pianoroll/demo.png)
+![Demo Image](https://github.com/DeemoHarlos/pianoroll/blob/master/demo.png?raw=true)
 
 ## What it does
 
