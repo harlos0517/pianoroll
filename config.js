@@ -1,81 +1,68 @@
 /* CONFIGURATION */
-// app & performance
-var bodyBgColor      = '#333333'
-var resolutionWidth  = 1920
-var resolutionHeight = 1080
-var backgroundColor  = 0x000000
-var antialias        = true
-var transparent      = false
-var renderBuffer     = 100 // in px
-var animationOnPause = false
-var skipFrameNum     = 0 // skip frames
+var config = {
+	// MIDI
+	'midi' : {
+		'file'           : 'demo2.mid'
+	},
+	'defaultBpm'       : 60,
+	'playDelayRatio'   : 1.25, // compared to noteArea height,
+	'speed'            : 0.40, // px:ms,
+	'accelRatio'       : 1.0, // REALTIME
 
-// pianoroll layout
-var startKey         =  21 // Must be on white-key
-var endKey           = 108 // Must be on white-key
+	// audio,
+	'audio' : {
+		'file'           : 'demo2.mp3',
+		'format'         : 'mp3',
+		'offset'         :    0, // ms
+		'delay'          :  -70, // ms
+		'volume'         : 0.8 // REALTIME
+	},
 
-var paddingTratio    = 0
-var paddingBratio    = 0.1
-var paddingLRratio   = 0.1
+	// pianoroll layout
+	'startKey'         :  21,
+	'endKey'           : 108,
 
-var whiteKeyHratio   = 5.5
-var blackKeyWratio   = 0.6
-var blackKeyHratio   = 3.5
+	'keyRatio' : {
+		'white' : {
+			'height'       : 5.5
+		},
+		'black' : {
+			'width'        : 0.6 ,
+			'height'       : 3.5
+		}
+	},
 
-var noteRadiusRatio  = 0.2
+	'paddingRatio' : {
+		'top'            : 0,
+		'bottom'         : 0.1,
+		'side'           : 0.1
+	},
 
-var noteLRratio      = 0.1
+	'noteRatio' : {
+		'radius'         : 0.2,
+		'margin'         : 0.1,
+	},
 
-// MIDI
-var midiFile         = 'demo2.mid'
-var defaultBpm       = 60
-var playDelayRatio   = 1.25 // compared to noteArea height
-var speed            = 0.40 // px:ms
+	// colors,
+	'keyDim'           : 0.8,
+	'blackNoteDim'     : 0.5,
+	'noteColor'        : [ // [track][channel]
+		[0xFFAA00],
+		[0xFFFF88],
+		[0x55AAFF],
+		[0x66FFFF],
+	],
 
-// audio
-var audioFile        = 'demo2.mp3'
-var audioFormat      = 'mp3'
-var audioOffset      =    0 // ms
-var audioDelay       =  -70 // ms
-var playbackListen   = true
-var curEventListen   = 0
-var accelRatio       = 1.0
-var volume           = 0.8
+	// app & performance,
+	'resolution' : {
+		'width'          : 1920,
+		'height'         : 1080
+	},
+	'backgroundColor'  : 0x000000,
+	'antialias'        : true,
+	'transparent'      : false,
 
-// colors
-var keyDim           = 0.8
-var blackNoteDim     = 0.5
-var noteColor        = [ // [track][channel]
-	[0xFFAA00,0xFFAA00,0xFFAA00,0xFFAA00],
-	[0xFFFF88,0xFFFF88,0xFFFF88,0xFFFF88],
-	[0x55AAFF,0x55AAFF,0x55AAFF,0x55AAFF],
-	[0x66FFFF,0x66FFFF,0x66FFFF,0x66FFFF],
-	[0xFFAA00,0xFFAA00,0xFFAA00,0xFFAA00],
-	[0xFFFF88,0xFFFF88,0xFFFF88,0xFFFF88],
-	[0x55AAFF,0x55AAFF,0x55AAFF,0x55AAFF],
-	[0x66FFFF,0x66FFFF,0x66FFFF,0x66FFFF],
-	[0xFFAA00,0xFFAA00,0xFFAA00,0xFFAA00],
-	[0xFFFF88,0xFFFF88,0xFFFF88,0xFFFF88],
-	[0x55AAFF,0x55AAFF,0x55AAFF,0x55AAFF],
-	[0x66FFFF,0x66FFFF,0x66FFFF,0x66FFFF],
-	[0xFFAA00,0xFFAA00,0xFFAA00,0xFFAA00],
-	[0xFFFF88,0xFFFF88,0xFFFF88,0xFFFF88],
-	[0x55AAFF,0x55AAFF,0x55AAFF,0x55AAFF],
-	[0x66FFFF,0x66FFFF,0x66FFFF,0x66FFFF],
-	[0xFFAA00,0xFFAA00,0xFFAA00,0xFFAA00],
-	[0xFFFF88,0xFFFF88,0xFFFF88,0xFFFF88],
-	[0x55AAFF,0x55AAFF,0x55AAFF,0x55AAFF],
-	[0x66FFFF,0x66FFFF,0x66FFFF,0x66FFFF],
-	[0xFFAA00,0xFFAA00,0xFFAA00,0xFFAA00],
-	[0xFFFF88,0xFFFF88,0xFFFF88,0xFFFF88],
-	[0x55AAFF,0x55AAFF,0x55AAFF,0x55AAFF],
-	[0x66FFFF,0x66FFFF,0x66FFFF,0x66FFFF],
-	[0xFFAA00,0xFFAA00,0xFFAA00,0xFFAA00],
-	[0xFFFF88,0xFFFF88,0xFFFF88,0xFFFF88],
-	[0x55AAFF,0x55AAFF,0x55AAFF,0x55AAFF],
-	[0x66FFFF,0x66FFFF,0x66FFFF,0x66FFFF],
-	[0xFFAA00,0xFFAA00,0xFFAA00,0xFFAA00],
-	[0xFFFF88,0xFFFF88,0xFFFF88,0xFFFF88],
-	[0x55AAFF,0x55AAFF,0x55AAFF,0x55AAFF],
-	[0x66FFFF,0x66FFFF,0x66FFFF,0x66FFFF],
-]
+	'renderBuffer'     : 100, // in px,
+	'animationOnPause' : false, // REALTIME
+	'skipFrameNum'     : 0 // skip frames
+}

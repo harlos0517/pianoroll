@@ -1,6 +1,62 @@
+body {
+	font-size: 20px;
+	line-height: 1.5em;
+	font-family: sans-serif;
+	color: #EEE;
+	background-color: #222;
+}
+
 body>.wrap {
 	width: 100vw;
 	height: 100vh;
 	overflow-x: hidden;
 	overflow-y: auto;
+}
+
+#main {
+}
+
+#settings {
+	padding: 2em 5%;
+}
+
+.upload {
+	display: block;
+	border: 2px solid #EEE;
+	border-radius: 8px;
+	font-weight: 600;
+	padding: 1em;
+	text-align: center;
+	transition: background-color 100ms;
+}
+
+.upload:hover {
+	background-color: #EEE3;
+}
+
+#load {
+	border: 2px solid #EE8;
+	border-radius: 8px;
+	color: #EE8;
+	transition: background-color 100ms;
+}
+
+#load:hover {
+	background-color: #EE83;
+}
+
+label>input {
+	display: none;
+}
+ 
+.left {
+	margin-right: 2%;
+}
+
+.right {
+	margin-left: 2%;
+}
+
+.section {
+	padding: .5em 0;
 }

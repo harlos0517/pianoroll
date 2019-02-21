@@ -10,14 +10,40 @@
 	<script src="howler.min.js"></script>
 	<script src="scaleToWindow.js" type="text/javascript"></script>
 	<script src="midi2json.js" type="text/javascript"></script>
+	<script src="config.js" type="text/javascript"></script>
 </head>
 <body><div class="wrap">
 	<div id="main"></div>
 	<div id="settings">
-		<input type="file" name="midfile" id="midfile" class="inputfile">
-		<input type="file" name="audiofile" id="audiofile" class="inputfile">
-		<input type="button" name="load" id="load" value="LOAD">
+		<div id="upload" class="flex row">
+			<label for="midifile" id="midifile-label" class="left upload expand">
+				<span>Upload MIDI</span>
+				<input type="file" name="midifile" id="midifile">
+			</label>
+			<input type="button" name="load" id="load" value="LOAD" class="upload">
+			<label for="audiofile" id="audiofile-label" class="right upload expand">
+				<span>Upload Audio</span>
+				<input type="file" name="audiofile" id="audiofile">
+			</label>
+		</div>
+
+		<div id="playback" class="flex row section">
+			<div id="midi" class="expand left">
+				<!--input type="range" min="20" max="240" class="slider" id="defaultBpm"-->
+			</div>
+			<div id="audio" class="expand right">
+
+			</div>
+		</div>
+		<div id="layout" class="section">
+
+		</div>
+		<div id="colors" class="section">
+
+		</div>
+		<div id="render" class="section">
+
+		</div>
 	</div>
-	<script src="config.js" type="text/javascript"></script>
 	<script src="index.js" type="text/javascript"></script>
 </div></body>
