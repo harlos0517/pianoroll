@@ -9,7 +9,7 @@ An open-source MIDI note visualizing webpage.
 Converts a midi file into piano roll presentation, with customly uploaded audio.
 
 ## Usage
-* Roll down the webpage and click 'Upload MIDI', and choose the midi file you want to upload.
+* Roll down the **[WEBPAGE](https://DeemoHarlos.github.io/pianoroll)** and click 'Upload MIDI', and choose the midi file you want to upload.
 * (Optional) click 'Upload Audio' and choose the audio you want to play along with the MIDI presentation.
 * Click 'Load' to start loading.
 * When it's ready (Currently, the status can only be seen in console.log (F12)), Click the video to start.
