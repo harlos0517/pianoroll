@@ -4,20 +4,24 @@ An open-source MIDI note visualizing webpage.
 
 ![Demo Image](https://DeemoHarlos.github.io/pianoroll/demo.png)
 
-## ~~What it does~~ What it sould do
+## What it does
 
-Converts a midi file into piano roll presentation, with audio.
+Converts a midi file into piano roll presentation, with customly uploaded audio.
 
 ## Usage
+* Roll down the webpage and click 'Upload MIDI', and choose the midi file you want to upload.
+* (Optional) click 'Upload Audio' and choose the audio you want to play along with the MIDI presentation.
+* Click 'Load' to start loading.
+* When it's ready (Currently, the status can only be seen in console.log (F12)), Click the video to start.
+* Enjoy the music and video!
 
-Currently ( v0.1 ) , changing midi file is unavailable, since `midifile.json` is generated manually by myself.
-
-## Dependencies ( v0.1 )
+## Dependencies ( `e515f30` )
 * [pixi.js](http://www.pixijs.com/) `v4.8.5`
-* [scaleToWindow.js](https://github.com/kittykatattack/scaleToWindow) `bc43fe7`
 * [howler.js](https://howlerjs.com/) `v2.1.1`
+* [scaleToWindow.js](https://github.com/kittykatattack/scaleToWindow) (modified) `bc43fe7`
+* [midi-file](https://github.com/carter-thaxton/midi-file) (modified) `3490136`
 
-## Struture ( v0.1 )
+## Struture ( `e515f30` )
 
 ### HTML/CSS
 * `index.html`
@@ -29,79 +33,62 @@ Currently ( v0.1 ) , changing midi file is unavailable, since `midifile.json` is
 * `pixi.min.js`
 * `howler.min.js`
 * `scaleToWindow.js`
+* `midi2json.js`
+* `scaleToWindow.js`
+* `config.js` ( Configuration )
 
 ### Assets
-* Audio
-	* `deerstalker.mp3`
-
-* midi data ( in JSON format )
-	* `midifile.json`
+* demo (default midi and audio source) ( [Music source](https://www.youtube.com/watch?v=BGzIIVYzUkY) )
+	* `demo.mid`
+	* `demo.mp3`
 
 * images ( from [Musescore.com](https://musescore.com) )
-	* `whiteKeyDefault.svg`
-	* `whiteKeyPressed.svg`
-	* `whiteKeyActiveLeft.svg`
-	* `whiteKeyActiveRight.svg`
-	* `blackKeyDefault.svg`
-	* `blackKeyPressed.svg`
-	* `blackKeyActiveLeft.svg`
-	* `blackKeyActiveRight.svg`
-	* `revoltfx-spritesheet.png`
-		* `revoltfx-spritesheet.json`
+	* `whiteOn.svg`
+	* `whiteOff.svg`
+	* `blackOn.svg`
+	* `blackOff.svg`
 
 ### Main code ( `index.js` )
-1. PIXI function and constructor aliases
+* PIXI function and constructor aliases
 
-2. Configuration
-	* Piano roll layout
-	* MIDI playback
-	* PIXI app settings
-	* Howler sound settings
+* Pianoroll()
+1. Parameters
+2. `states` ( `object` )
+3. `setup()`
+4. `gameLoop(delta)`
+5. `switchState(st)`
+6. `idle()`
+7. `log()`
+8. `rescale()`
+9. `loadConfig()`
+10. `initParams()`
+11. `initKeys()`
+12. `loadData()`
+13. `loadAudio()`
+14. `getColor(track, channel)`
+15. `colorFilter(hex,dim)`
+16. `dimFilter(v)`
+17. `isWhiteKey(i)`
+18. `isBlackKey(i)`
+19. `getWhiteKeyIndex(i)`
+20. `getLeftPos(i)`
+21. `addKey(i)`
+22. `addAllKeys()`
+23. `modifyJson(data)`
+24. `noteAreaInit()`
+25. `toggleRender(obj)`
+26. `renderNotes(x)`
+27. `updateNoteArea()`
+28. `audioPlaybackListener() `
+29. `updateKeys()`
 
-3. Parameters declaration
-	* timers
-	* PIXI Sprites, Containers, masks
-
-4. Scaling to window size
-
-5. Load Assets
-
-6. Functions
-	* Note function
-		* `isWhiteKey(i)` ( `boolean` )
-		* `isBlackKey(i)` ( `boolean` )
-		* `getNoteName(i)` ( `string` )
-
-	* Piano roll rendering
-		* `getWhiteKeyIndex(i)` ( `number` )
-		* `getLeftPos(i)` ( `number` in `px` )
-		* `addKey(i)`
-		* `addAllKeys`
-
-	* Parse JSON data ( TODO: Convert a MIDI ( `*.mid` ) file into JSON ( `*.json` ) format directly. )
-		* `parseMidi(midi)` ( `Array` )
-
-	* note rendering
-		* `noteAreaInit()`
-		* `toggleRender(obj)` ( `string` : 'after'|'before'|'inside' )
-		* `renderNotes(x)`
-
-	* Playback
-		* `updateNoteArea()`
-		* `audioPlaybackListener()`
-		* `updatePianoKeys()`
-
-7. main code
-	* `gameLoop(delta)` ( Triggers timer events )
-	* `setup()` ( Setup bfore playback )
-	* `play()` ( Playback )
-	* `log()` ( `console.log`s FPS and the number of rendered notes )
-	* `end()` ( Empty function, unsed )
+* Run! Call `PianoRoll()`
 
 ## Author
 ### Deemo Harlos
-* [Facebook](https://facebook.com/deemoharlos.music/)
 * [YouTube](https://youtube.com/c/deemoharlos)
-* [Instagram](https://instagram.com/deemo_harlos/)
-* [Github](https://github.com/DeemoHarlos)
 * [Musescore](https://musescore.com/deemo_harlos)
+* Support me on [Patreon](https://patreon.com/DeemoHarlos)!
+* [Github](https://github.com/DeemoHarlos)
+* [Facebook](https://facebook.com/deemoharlos.music/)
+* [Instagram](https://instagram.com/deemo_harlos/)
